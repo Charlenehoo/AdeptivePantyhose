@@ -1,0 +1,51 @@
+@startuml
+skinparam state {
+    BackgroundColor<<Seamless>> LightGreen
+    BackgroundColor<<Seam>> LightCoral
+    BorderColor Black
+}
+
+[*] --> Barefoot_FlatFeet : game start
+[*] --> FlatShoe_FlatFeet : game start
+[*] --> HighHeel_FlatFeet : game start
+
+state Barefoot_FlatFeet <<Seamless>> {
+    [*] --> FlatFeet
+    FlatFeet --> TipToe : player does TipToe / MorphClear
+    TipToe --> FlatFeet : MorphSet
+}
+
+state Barefoot_TipToe <<Seam>> {
+    [*] --> TipToe
+    TipToe --> FlatFeet : MorphSet
+}
+
+state FlatShoe_FlatFeet <<Seamless>> {
+    [*] --> FlatFeet
+    FlatFeet --> TipToe : MorphClear
+    TipToe --> FlatFeet : MorphSet
+}
+
+state FlatShoe_TipToe <<Seam>> {
+    [*] --> TipToe
+    TipToe --> FlatFeet : MorphSet
+}
+
+state HighHeel_FlatFeet <<Seamless>> {
+    [*] --> FlatFeet
+    FlatFeet --> TipToe : MorphClear
+    TipToe --> FlatFeet : MorphSet
+}
+
+state HighHeel_TipToe <<Seam>> {
+    [*] --> TipToe
+    TipToe --> FlatFeet : MorphSet
+}
+
+// 鞋子切换事件
+FlatShoe_FlatFeet --> Barefoot_FlatFeet : remove shoes
+Barefoot_FlatFeet --> FlatShoe_FlatFeet : equip flat shoes
+HighHeel_FlatFeet --> Barefoot_FlatFeet : remove heels
+Barefoot_FlatFeet --> HighHeel_FlatFeet : equip heels
+
+@enduml
