@@ -33,6 +33,7 @@ if(DEFINED ENV{SKYRIM_MODS_FOLDER} AND IS_DIRECTORY "$ENV{SKYRIM_MODS_FOLDER}")
 endif()
 
 if(DEFINED OUTPUT_FOLDER)
+
     set(DLL_FOLDER "${OUTPUT_FOLDER}/SKSE/Plugins")
     message(STATUS "SKSE plugin output folder: ${DLL_FOLDER}")
     add_custom_command(
@@ -42,6 +43,7 @@ if(DEFINED OUTPUT_FOLDER)
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:${PROJECT_NAME}>" "${DLL_FOLDER}/$<TARGET_FILE_NAME:${PROJECT_NAME}>"
         VERBATIM
     )
+
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")
         add_custom_command(
             TARGET "${PROJECT_NAME}"
@@ -50,4 +52,12 @@ if(DEFINED OUTPUT_FOLDER)
             VERBATIM
         )
     endif()
+
+    add_custom_command(
+        TARGET "${PROJECT_NAME}"
+        POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E copy_directory "${CMAKE_SOURCE_DIR}/assets" "${OUTPUT_FOLDER}"
+        VERBATIM
+    )
+
 endif()
