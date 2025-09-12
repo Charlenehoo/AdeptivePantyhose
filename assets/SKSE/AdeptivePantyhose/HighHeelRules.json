@@ -1,0 +1,12 @@
+[
+  {
+    "ByPlugin": {
+      "Name": "[Caenarvon] Cosplay Pack Gala.esp",
+      "Rule": [
+        { "ByFormIDRange": { "Min": "0xB69", "Max": "0xB72" } },
+        { "ByFormIDRange": { "Min": "0xCB6", "Max": "0xCFC" } }
+      ]
+    }
+  },
+  { "ByKeywords": ["SLA_KillerHeels"] }
+]
