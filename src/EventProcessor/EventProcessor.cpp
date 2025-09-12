@@ -12,31 +12,45 @@ EventProcessor& EventProcessor::GetSingleton() {
 RE::BSEventNotifyControl EventProcessor::ProcessEvent(const RE::TESEquipEvent* a_event,
                                                       RE::BSTEventSource<RE::TESEquipEvent>*) {
     if (!a_event) return RE::BSEventNotifyControl::kContinue;
+
     RE::TESObjectREFR* actorRefr = a_event->actor.get();
     if (!actorRefr) return RE::BSEventNotifyControl::kContinue;
+
     RE::Actor* actor = actorRefr->As<RE::Actor>();
     if (!actor) return RE::BSEventNotifyControl::kContinue;
+
+    RE::TESNPC* actorBase = actor->GetActorBase();
+    if (!actorBase) return RE::BSEventNotifyControl::kContinue;
+
+    if (actorBase->GetSex() != RE::SEXES::kFemale) return RE::BSEventNotifyControl::kContinue;
+
+    auto race = actorBase->race;
+    if (!race || !race->GetPlayable()) return RE::BSEventNotifyControl::kContinue;
 
     RE::TESForm* form = RE::TESForm::LookupByID(a_event->baseObject);
     if (!form || !form->IsArmor()) return RE::BSEventNotifyControl::kContinue;
 
     RE::TESObjectARMO* armor = form->As<RE::TESObjectARMO>();
-    if (!armor->HasPartOf(RE::BGSBipedObjectForm::BipedObjectSlot::kFeet)) return RE::BSEventNotifyControl::kContinue;
+    if (!armor || !armor->HasPartOf(RE::BGSBipedObjectForm::BipedObjectSlot::kFeet))
+        return RE::BSEventNotifyControl::kContinue;
 
     const char* armorName = armor->GetName() ? armor->GetName() : "unnamed";
 
-    BodyMorphManager::GetSingleton().GetInterface()->ClearMorph(actorRefr, "NoHeel", "AdeptivePantyhoseMorphKey");
+    SKEE::IBodyMorphInterface* bodyInterface = BodyMorphManager::GetSingleton().GetInterface();
+    if (!bodyInterface || !bodyInterface->HasBodyMorphName(actorRefr, "NoHeel"))
+        return RE::BSEventNotifyControl::kContinue;
+
+    bodyInterface->ClearMorph(actorRefr, "NoHeel", "AdeptivePantyhoseMorphKey");
 
     if (!a_event->equipped || !IsHighHeel(armor)) {
-        BodyMorphManager::GetSingleton().GetInterface()->SetMorph(actorRefr, "NoHeel", "AdeptivePantyhoseMorphKey",
-                                                                  1.0f);
+        bodyInterface->SetMorph(actorRefr, "NoHeel", "AdeptivePantyhoseMorphKey", 1.0f);
         SKSE::log::trace("{} is barefoot or wearing non-high-heel footwear ({}), applying NoHeel morph",
                          actor->GetName(), armorName);
     } else {
         SKSE::log::trace("{} equipped high-heel footwear ({}), clearing NoHeel morph", actor->GetName(), armorName);
     }
 
-    BodyMorphManager::GetSingleton().GetInterface()->UpdateModelWeight(actorRefr);
+    bodyInterface->UpdateModelWeight(actorRefr);
     return RE::BSEventNotifyControl::kContinue;
 };
 
