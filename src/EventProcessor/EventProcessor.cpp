@@ -37,8 +37,7 @@ RE::BSEventNotifyControl EventProcessor::ProcessEvent(const RE::TESEquipEvent* a
     const char* armorName = armor->GetName() ? armor->GetName() : "unnamed";
 
     SKEE::IBodyMorphInterface* bodyInterface = BodyMorphManager::GetSingleton().GetInterface();
-    if (!bodyInterface || !bodyInterface->HasBodyMorphName(actorRefr, "NoHeel"))
-        return RE::BSEventNotifyControl::kContinue;
+    if (!bodyInterface) return RE::BSEventNotifyControl::kContinue;
 
     bodyInterface->ClearMorph(actorRefr, "NoHeel", "AdeptivePantyhoseMorphKey");
 

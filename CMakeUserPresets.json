@@ -11,6 +11,17 @@
         "VCPKG_HTTP_PROXY": "http://127.0.0.1:7897",
         "VCPKG_HTTPS_PROXY": "http://127.0.0.1:7897"
       }
+    },
+    {
+      "name": "user-release",
+      "inherits": "release",
+      "displayName": "User Release",
+      "environment": {
+        "HTTP_PROXY": "http://127.0.0.1:7897",
+        "HTTPS_PROXY": "http://127.0.0.1:7897",
+        "VCPKG_HTTP_PROXY": "http://127.0.0.1:7897",
+        "VCPKG_HTTPS_PROXY": "http://127.0.0.1:7897"
+      }
     }
   ]
 }
