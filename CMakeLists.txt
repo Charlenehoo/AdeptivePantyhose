@@ -8,15 +8,19 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(CommonLibSSE CONFIG REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
 
 add_commonlibsse_plugin(${PROJECT_NAME}
     SOURCES 
         src/Plugin.cpp
         src/BodyMorphManager/BodyMorphManager.cpp
         src/EventProcessor/EventProcessor.cpp
+        src/HighHeelDetector/HighHeelDetector.cpp
     AUTHOR "Charlene Hoo"
     EMAIL "CharleneHoo@hotmail.com"
 )
+
+target_link_libraries(${PROJECT_NAME} PRIVATE nlohmann_json::nlohmann_json)
 
 target_include_directories(${PROJECT_NAME} 
     PRIVATE src

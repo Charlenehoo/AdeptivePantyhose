@@ -3,6 +3,7 @@
 #include "EventProcessor.h"
 
 #include "BodyMorphManager/BodyMorphManager.h"
+#include "HighHeelDetector/HighHeelDetector.h"
 
 EventProcessor& EventProcessor::GetSingleton() {
     static EventProcessor instance;
@@ -41,7 +42,7 @@ RE::BSEventNotifyControl EventProcessor::ProcessEvent(const RE::TESEquipEvent* a
 
     bodyInterface->ClearMorph(actorRefr, "NoHeel", "AdeptivePantyhoseMorphKey");
 
-    if (!a_event->equipped || !IsHighHeel(armor)) {
+    if (!a_event->equipped || !HighHeelDetector::GetSingleton().IsHighHeel(armor)) {
         bodyInterface->SetMorph(actorRefr, "NoHeel", "AdeptivePantyhoseMorphKey", 1.0f);
         SKSE::log::trace("{} is barefoot or wearing non-high-heel footwear ({}), applying NoHeel morph",
                          actor->GetName(), armorName);
@@ -53,12 +54,12 @@ RE::BSEventNotifyControl EventProcessor::ProcessEvent(const RE::TESEquipEvent* a
     return RE::BSEventNotifyControl::kContinue;
 };
 
-bool IsHighHeel(RE::TESObjectARMO* a_feetArmor) {
-    if (!a_feetArmor) return false;
+// bool IsHighHeel(RE::TESObjectARMO* a_feetArmor) {
+//     if (!a_feetArmor) return false;
 
-    if (a_feetArmor->HasKeywordString("SLA_KillerHeels")) {
-        return true;
-    }
+//     if (a_feetArmor->HasKeywordString("SLA_KillerHeels")) {
+//         return true;
+//     }
 
-    return false;
-}
+//     return false;
+// }

@@ -16,4 +16,4 @@ public:
                                           RE::BSTEventSource<RE::TESEquipEvent>*) override;
 };
 
-bool IsHighHeel(RE::TESObjectARMO* a_feetArmor);
+// bool IsHighHeel(RE::TESObjectARMO* a_feetArmor);
