@@ -40,6 +40,7 @@ RE::BSEventNotifyControl EventProcessor::ProcessEvent(const RE::TESEquipEvent* a
     SKEE::IBodyMorphInterface* bodyInterface = BodyMorphManager::GetSingleton().GetInterface();
     if (!bodyInterface) return RE::BSEventNotifyControl::kContinue;
 
+    bodyInterface->ClearMorph(actorRefr, "NoHeel", "CH_AdeptivePantyhoseMorphKey");
     bodyInterface->ClearMorph(actorRefr, "NoHeel", "AdeptivePantyhoseMorphKey");
 
     if (!a_event->equipped || !HighHeelDetector::GetSingleton().IsHighHeel(armor)) {

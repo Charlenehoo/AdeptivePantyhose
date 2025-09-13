@@ -15,5 +15,3 @@ public:
     RE::BSEventNotifyControl ProcessEvent(const RE::TESEquipEvent* a_event,
                                           RE::BSTEventSource<RE::TESEquipEvent>*) override;
 };
-
-// bool IsHighHeel(RE::TESObjectARMO* a_feetArmor);
