@@ -29,14 +29,28 @@ bool HighHeelDetector::Init(const std::string& jsonPath) {
 
 namespace {
     inline bool IsValidFormIDRangeRulesJson(const nlohmann::json& a_ruleJson) {
-        return a_ruleJson.is_object() && a_ruleJson.contains("Plugin") && a_ruleJson.contains("Min") &&
-               a_ruleJson.contains("Max");
+        if (!a_ruleJson.is_object()) {
+            SKSE::log::error("Failed to parse JSON: rule is not an object, got {}", a_ruleJson.dump());
+            return false;
+        }
+        if (!a_ruleJson.contains("Plugin")) {
+            SKSE::log::error("Failed to parse JSON: missing 'Plugin' field in {}", a_ruleJson.dump());
+            return false;
+        }
+        if (!a_ruleJson.contains("Min") || !a_ruleJson.contains("Max")) {
+            SKSE::log::error("Failed to parse JSON: missing 'Min' or 'Max' field in {}", a_ruleJson.dump());
+            return false;
+        }
+        return true;
     }
 };
 
 bool HighHeelDetector::ParseFormIDRange(const nlohmann::json& j) {
     const auto& formIDRangeRulesJson = j["ByFormIDRange"];
-    if (!formIDRangeRulesJson.is_array()) return false;
+    if (!formIDRangeRulesJson.is_array()) {
+        SKSE::log::error("Failed to parse JSON: 'ByFormIDRange' is not an array, got {}", formIDRangeRulesJson.dump());
+        return false;
+    }
 
     for (const auto& ruleJson : formIDRangeRulesJson) {
         if (!IsValidFormIDRangeRulesJson(ruleJson)) return false;
@@ -47,7 +61,7 @@ bool HighHeelDetector::ParseFormIDRange(const nlohmann::json& j) {
             rule.max = static_cast<RE::FormID>(std::stoul(ruleJson["Max"].get<std::string>(), nullptr, 16));
             formIDRangeRules_.push_back(rule);
         } catch (const std::exception& e) {
-            SKSE::log::error("Failed to parse FormIDRange rule: {}", e.what());
+            SKSE::log::error("Failed to parse FormIDRange rule {}: {}", ruleJson.dump(), e.what());
             return false;
         }
     }
@@ -56,10 +70,16 @@ bool HighHeelDetector::ParseFormIDRange(const nlohmann::json& j) {
 
 bool HighHeelDetector::ParseKeywords(const nlohmann::json& j) {
     const auto& keywords = j["ByKeywords"];
-    if (!keywords.is_array()) return false;
+    if (!keywords.is_array()) {
+        SKSE::log::error("Failed to parse JSON: 'ByKeywords' is not an array, got {}", keywords.dump());
+        return false;
+    }
 
     for (const auto& kw : keywords) {
-        if (!kw.is_string()) return false;
+        if (!kw.is_string()) {
+            SKSE::log::error("Failed to parse Keywords: expected string but got {}", kw.dump());
+            return false;
+        }
 
         keywordsRules_.push_back(kw.get<std::string>());
     }
@@ -69,15 +89,7 @@ bool HighHeelDetector::ParseKeywords(const nlohmann::json& j) {
 bool HighHeelDetector::ParseJson(const nlohmann::json& j) {
     keywordsRules_.clear();
     formIDRangeRules_.clear();
-    if (!ParseKeywords(j)) {
-        SKSE::log::error("Failed to parse JSON: {}", "Keywords");
-        return false;
-    }
-    if (!ParseFormIDRange(j)) {
-        SKSE::log::error("Failed to parse JSON: {}", "FormIDRange");
-        return false;
-    }
-    return true;
+    return (ParseKeywords(j) && ParseFormIDRange(j));
 }
 
 bool HighHeelDetector::IsHighHeel(RE::TESObjectARMO* a_armor) const {
