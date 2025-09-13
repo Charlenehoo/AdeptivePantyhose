@@ -2,7 +2,6 @@
 #pragma once
 #include <nlohmann/json.hpp>
 #include <vector>
-#include <optional>
 #include <string>
 
 class HighHeelDetector {
@@ -23,7 +22,9 @@ public:
     bool IsHighHeel(RE::TESObjectARMO* armor) const;
 
 private:
-    void ParseJson(const nlohmann::json& j);
+    bool ParseJson(const nlohmann::json& j);
+    bool ParseKeywords(const nlohmann::json& j);
+    bool ParseFormIDRange(const nlohmann::json& j);
 
     HighHeelDetector() = default;
     ~HighHeelDetector() = default;
