@@ -48,7 +48,7 @@ SKSEPluginLoad(const SKSE::LoadInterface* a_skse) {
                         SKSE::stl::report_and_fail(("{} failed to init body morph manager", pluginName));
                     }
 
-                    if (!HighHeelDetector::GetSingleton().Init("Data/SKSE/AdeptivePantyhose/HighHeelRules.json")) {
+                    if (!HighHeelDetector::GetSingleton().Init("Data/SKSE/AdeptivePantyhose/DefineHighHeel.json")) {
                         SKSE::stl::report_and_fail(("{} failed to init high heel detector",
                                                     SKSE::PluginDeclaration::GetSingleton()->GetName()));
                     }
