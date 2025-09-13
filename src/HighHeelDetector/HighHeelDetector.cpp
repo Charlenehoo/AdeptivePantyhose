@@ -59,8 +59,8 @@ void HighHeelDetector::ParseJson(const nlohmann::json& j) {
                         rule.plugin = ruleJson["Plugin"].get<std::string>();
 
                         // 从十六进制字符串转换为无符号整数 (RE::FormID)
-                        rule.min = std::stoul(ruleJson["Min"].get<std::string>(), nullptr, 16);
-                        rule.max = std::stoul(ruleJson["Max"].get<std::string>(), nullptr, 16);
+                        rule.min = static_cast<RE::FormID>(std::stoul(ruleJson["Min"].get<std::string>(), nullptr, 16));
+                        rule.max = static_cast<RE::FormID>(std::stoul(ruleJson["Max"].get<std::string>(), nullptr, 16));
 
                         formIDRangeRules_.push_back(rule);
                     } catch (const std::exception& e) {
@@ -75,43 +75,45 @@ void HighHeelDetector::ParseJson(const nlohmann::json& j) {
 
 bool HighHeelDetector::IsHighHeel(RE::TESObjectARMO* a_armor) const {
     if (!a_armor) {
+        SKSE::log::trace("IsHighHeel: armor is null");
         return false;
     }
 
-    // 规则 1: 检查关键字是否匹配
-    // std::any_of: 如果集合中至少有一个元素使 lambda 表达式返回 true, 则它也返回 true
-    if (std::any_of(keywordsRules_.begin(), keywordsRules_.end(),
-                    [a_armor](const std::string& kw) { return a_armor->HasKeywordString(kw.c_str()); })) {
-        return true;  // 找到匹配的关键字，判定为高跟鞋
-    }
-
-    // 规则 2: 检查插件名和 FormID 范围是否匹配
+    const char* armorName = a_armor->GetName();
     const auto* file = a_armor->GetFile(0);
-    // 确保护甲来自一个有效的插件文件
+    const char* fileName = file ? file->fileName : "<null>";
+    const RE::FormID localFormID = a_armor->GetLocalFormID();
+    std::string_view armorPluginName(fileName);
+
+    SKSE::log::trace("IsHighHeel called: armor name: '{}', plugin: '{}', localFormID: {:X}", armorName, fileName,
+                     localFormID);
+
+    // 规则 1: 检查关键字
+    for (const auto& kw : keywordsRules_) {
+        bool hasKw = a_armor->HasKeywordString(kw.c_str());
+        SKSE::log::trace("Checking keyword '{}': {}", kw, hasKw ? "matched" : "not matched");
+        if (hasKw) return true;
+    }
+
+    // 规则 2: 检查插件名和 FormID
     if (!file || !file->fileName) {
+        SKSE::log::trace("Plugin file null, cannot match FormIDRange");
         return false;
     }
 
-    const RE::FormID localFormID = a_armor->GetLocalFormID();
-    const std::string_view armorPluginName(file->fileName);
+    for (const auto& rule : formIDRangeRules_) {
+        bool pluginMatch = (armorPluginName == rule.plugin);
+        bool formIDMatch = (localFormID >= rule.min && localFormID <= rule.max);
 
-    // 用于不区分大小写比较字符串的 lambda 表达式
-    auto caseInsensitiveCompare = [](std::string_view s1, std::string_view s2) {
-        return std::equal(s1.begin(), s1.end(), s2.begin(), s2.end(), [](char a, char b) {
-            return std::tolower(static_cast<unsigned char>(a)) == std::tolower(static_cast<unsigned char>(b));
-        });
-    };
+        SKSE::log::trace(
+            "Checking FormIDRange: rule.plugin='{}', rule.min={:X}, rule.max={:X} => pluginMatch={}, formIDMatch={}",
+            rule.plugin, rule.min, rule.max, pluginMatch, formIDMatch);
 
-    if (std::any_of(formIDRangeRules_.begin(), formIDRangeRules_.end(), [&](const FormIDRangeRule& rule) {
-            // 同时满足以下两个条件：
-            // 1. 插件名匹配 (不区分大小写)
-            // 2. 本地 FormID 在指定的 [Min, Max] 范围内
-            return caseInsensitiveCompare(armorPluginName, rule.plugin) &&
-                   (localFormID >= rule.min && localFormID <= rule.max);
-        })) {
-        return true;  // 找到匹配的 FormID 范围，判定为高跟鞋
+        if (pluginMatch && formIDMatch) return true;
     }
 
-    // 所有规则都不匹配
+    SKSE::log::trace("IsHighHeel result: false for armor '{}', plugin '{}', localFormID {:X}", armorName, fileName,
+                     localFormID);
+
     return false;
 }

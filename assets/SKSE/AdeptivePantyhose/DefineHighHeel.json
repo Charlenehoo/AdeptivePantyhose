@@ -10,6 +10,11 @@
       "Plugin": "[Caenarvon] Cosplay Pack Gala.esp",
       "Min": "0xCB6",
       "Max": "0xCFC"
+    },
+    {
+      "Plugin": "[Caenarvon] Cosplay Pack Casual.esp",
+      "Min": "0xA92",
+      "Max": "0xA92"
     }
   ]
 }

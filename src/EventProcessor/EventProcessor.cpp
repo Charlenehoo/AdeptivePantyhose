@@ -53,13 +53,3 @@ RE::BSEventNotifyControl EventProcessor::ProcessEvent(const RE::TESEquipEvent* a
     bodyInterface->UpdateModelWeight(actorRefr);
     return RE::BSEventNotifyControl::kContinue;
 };
-
-// bool IsHighHeel(RE::TESObjectARMO* a_feetArmor) {
-//     if (!a_feetArmor) return false;
-
-//     if (a_feetArmor->HasKeywordString("SLA_KillerHeels")) {
-//         return true;
-//     }
-
-//     return false;
-// }
