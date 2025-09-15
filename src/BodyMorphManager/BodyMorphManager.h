@@ -16,5 +16,5 @@ private:
 public:
     static BodyMorphManager& GetSingleton();
     bool Init();
-    SKEE::IBodyMorphInterface* GetInterface() const;
+    void UpdateHighHeelMorph(RE::Actor* a_actor, bool isHighHeel);
 };

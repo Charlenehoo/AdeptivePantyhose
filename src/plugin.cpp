@@ -7,17 +7,87 @@
 #include "EventProcessor/EventProcessor.h"
 #include "HighHeelDetector/HighHeelDetector.h"
 
-bool InitLog() {
-    auto logsFolder = SKSE::log::log_directory();
-    if (!logsFolder) return false;
+namespace {
+    static bool g_firstTimePostLoadGame = true;
+}
+
+void HandleFirstTimePostLoadGame() {
+    SKSE::log::trace(">>>> Entering HandleFirstTimePostLoadGame");
+
+    RE::PlayerCharacter* player = RE::PlayerCharacter::GetSingleton();
+    if (!player) {
+        SKSE::log::warn("HandleFirstTimePostLoadGame: PlayerCharacter not found");
+        SKSE::log::trace("<<<< Exiting HandleFirstTimePostLoadGame (no player)");
+    }
+    SKSE::log::trace("HandleFirstTimePostLoadGame: Player found: {}", player->GetName());
+
+    RE::TESObjectARMO* feetArmor = player->GetWornArmor(RE::BGSBipedObjectForm::BipedObjectSlot::kFeet);
+    if (!feetArmor) {
+        SKSE::log::trace("HandleFirstTimePostLoadGame: Player is barefoot");
+        BodyMorphManager::GetSingleton().UpdateHighHeelMorph(player, false);
+        SKSE::log::trace("<<<< Exiting HandleFirstTimePostLoadGame (barefoot)");
+        return;
+    }
+
+    BodyMorphManager::GetSingleton().UpdateHighHeelMorph(player,
+                                                         HighHeelDetector::GetSingleton().IsHighHeel(feetArmor));
+
+    SKSE::log::trace("<<<< Exiting HandleFirstTimePostLoadGame");
+}
+
+void MessagingInterfaceEventCallback(SKSE::MessagingInterface::Message* a_msg) {
+    SKSE::log::warn("MessagingInterfaceEventCallback: Received null message pointer");
+    SKSE::log::trace(">>>> Entering MessagingInterfaceEventCallback");
+
+    if (!a_msg) {
+        SKSE::log::trace("<<<< Exiting MessagingInterfaceEventCallback (null message)");
+    }
+
+    SKSE::log::trace("Processing message type: {}", a_msg->type);
+    switch (a_msg->type) {
+        case SKSE::MessagingInterface::kPostPostLoad: {
+            SKSE::log::trace("Handling kPostPostLoad message");
+
+            SKSE::log::trace("Initializing BodyMorphManager...");
+            BodyMorphManager::GetSingleton().Init();
+        }
+
+        break;
+        case SKSE::MessagingInterface::kPostLoadGame: {
+            SKSE::log::trace("Handling kPostLoadGame message");
+
+            if (!g_firstTimePostLoadGame) {
+                SKSE::log::trace("Not first time post-load game, skipping");
+            } else {
+                SKSE::log::trace("First time post-load game detected");
+
+                g_firstTimePostLoadGame = false;
+                HandleFirstTimePostLoadGame();
+
+                SKSE::log::trace("HandleFirstTimePostLoadGame completed");
+            }
+
+        } break;
+        default:
+            break;
+    }
+
+    SKSE::log::trace("<<<< Exiting MessagingInterfaceEventCallback");
+}
+
+void InitLog() {
     auto pluginName = SKSE::PluginDeclaration::GetSingleton()->GetName();
+
+    auto logsFolder = SKSE::log::log_directory();
+    if (!logsFolder)
+        SKSE::stl::report_and_fail(std::format("{}: failed to init log - logs folder not found", pluginName));
+
     auto logFilePath = *logsFolder / std::format("{}.log", pluginName);
     auto fileLoggerPtr = std::make_shared<spdlog::sinks::basic_file_sink_mt>(logFilePath.string(), true);
     auto loggerPtr = std::make_shared<spdlog::logger>("log", std::move(fileLoggerPtr));
     spdlog::set_default_logger(std::move(loggerPtr));
     spdlog::set_level(spdlog::level::trace);
     spdlog::flush_on(spdlog::level::trace);
-    return true;
 }
 
 SKSEPluginLoad(const SKSE::LoadInterface* a_skse) {
@@ -30,40 +100,42 @@ SKSEPluginLoad(const SKSE::LoadInterface* a_skse) {
     const auto authorName = plugin->GetAuthor();
     const auto supportEmail = plugin->GetSupportEmail();
 
-    if (!InitLog()) SKSE::stl::report_and_fail(("{} failed to init log", pluginName));
+    InitLog();
 
-    SKSE::log::info("Load plugin: {} v{} by {} with game version {}, if any question, you might reach her by {}.",
-                    pluginName, pluginVersion, authorName, gameVersion, supportEmail);
+    SKSE::log::info("==================================================");
+    SKSE::log::info("Loading plugin: {}", pluginName);
+    SKSE::log::info("Plugin version: {}", pluginVersion);
+    SKSE::log::info("Game version: {}", gameVersion);
+    SKSE::log::info("Author: {}", authorName);
+    SKSE::log::info("Support: {}", supportEmail);
+    SKSE::log::info("==================================================");
 
+    SKSE::log::trace("Getting messaging interface...");
     auto messaging = SKSE::GetMessagingInterface();
+    if (!messaging) {
+        SKSE::log::critical("Failed to get messaging interface");
+        SKSE::stl::report_and_fail(std::format("{} failed to get messaging interface", pluginName));
+    }
+    SKSE::log::trace("Messaging interface acquired");
 
-    if (!messaging) SKSE::stl::report_and_fail(("{} failed to get messaging interface", pluginName));
+    SKSE::log::trace("Registering message listener...");
+    if (!messaging->RegisterListener(MessagingInterfaceEventCallback)) {
+        SKSE::log::critical("Failed to register message listener");
+        SKSE::stl::report_and_fail(std::format("{} failed to register messaging interface listener", pluginName));
+    }
+    SKSE::log::trace("Message listener registered successfully");
 
-    if (!messaging->RegisterListener([](SKSE::MessagingInterface::Message* a_msg) {
-            if (!a_msg) return;
-            switch (a_msg->type) {
-                case SKSE::MessagingInterface::kPostPostLoad: {
-                    const auto pluginName = SKSE::PluginDeclaration::GetSingleton()->GetName();
-                    if (!BodyMorphManager::GetSingleton().Init()) {
-                        SKSE::stl::report_and_fail(("{} failed to init body morph manager", pluginName));
-                    }
-
-                    if (!HighHeelDetector::GetSingleton().Init("Data/SKSE/AdeptivePantyhose/DefineHighHeel.json")) {
-                        SKSE::stl::report_and_fail(("{} failed to init high heel detector",
-                                                    SKSE::PluginDeclaration::GetSingleton()->GetName()));
-                    }
-                } break;
-
-                default:
-                    break;
-            }
-        })) {
-        SKSE::stl::report_and_fail(("{} failed to register messaging interface listener", pluginName));
+    SKSE::log::trace("Initializing HighHeelDetector...");
+    if (!HighHeelDetector::GetSingleton().Init("Data/SKSE/AdeptivePantyhose/DefineHighHeel.json")) {
+        SKSE::log::critical("Failed to initialize HighHeelDetector");
+        SKSE::stl::report_and_fail(std::format("{} failed to init high heel detector", pluginName));
     }
 
-    auto& eventProcessor = EventProcessor::GetSingleton();
-    RE::ScriptEventSourceHolder::GetSingleton()->AddEventSink<RE::TESEquipEvent>(&eventProcessor);
+    SKSE::log::trace("Registering equip event sink...");
+    RE::ScriptEventSourceHolder::GetSingleton()->AddEventSink<RE::TESEquipEvent>(&EventProcessor::GetSingleton());
+    SKSE::log::trace("Equip event sink registered");
 
-    SKSE::log::info("Plugin loaded.");
+    SKSE::log::info("Plugin loaded successfully");
+
     return true;
 }

@@ -10,38 +10,48 @@ HighHeelDetector& HighHeelDetector::GetSingleton() {
 }
 
 bool HighHeelDetector::Init(const std::string& jsonPath) {
+    SKSE::log::trace(">>>> Entering HighHeelDetector::Init");
+    SKSE::log::trace("Loading high heel definitions from: {}", jsonPath);
+
     std::ifstream file(jsonPath);
     if (!file.is_open()) {
-        SKSE::log::error("Failed to open JSON: {}", jsonPath);
+        SKSE::log::error("HighHeelDetector::Init - Failed to open JSON file: {}", jsonPath);
+        SKSE::log::trace("<<<< Exiting HighHeelDetector::Init (false)");
         return false;
     }
 
     nlohmann::json j;
     try {
         file >> j;
+        SKSE::log::trace("HighHeelDetector::Init - JSON file loaded successfully");
     } catch (const nlohmann::json::parse_error& e) {
-        SKSE::log::error("Failed to parse JSON: {}", e.what());
+        SKSE::log::error("HighHeelDetector::Init - Failed to parse JSON: {}", e.what());
+        SKSE::log::trace("<<<< Exiting HighHeelDetector::Init (false)");
         return false;
     }
 
-    return ParseJson(j);
+    bool result = ParseJson(j);
+    SKSE::log::trace("<<<< Exiting HighHeelDetector::Init ({})", result);
+    return result;
 }
 
 namespace {
     inline bool IsValidFormIDRangeRulesJson(const nlohmann::json& a_ruleJson) {
+        bool isValid = true;
         if (!a_ruleJson.is_object()) {
-            SKSE::log::error("Failed to parse JSON: rule is not an object, got {}", a_ruleJson.dump());
-            return false;
+            isValid = false;
+            SKSE::log::error("HighHeelDetector::ParseFormIDRange - Rule is not an object: {}", a_ruleJson.dump());
         }
         if (!a_ruleJson.contains("Plugin")) {
-            SKSE::log::error("Failed to parse JSON: missing 'Plugin' field in {}", a_ruleJson.dump());
-            return false;
+            isValid = false;
+            SKSE::log::error("HighHeelDetector::ParseFormIDRange - Missing 'Plugin' field: {}", a_ruleJson.dump());
         }
         if (!a_ruleJson.contains("Min") || !a_ruleJson.contains("Max")) {
-            SKSE::log::error("Failed to parse JSON: missing 'Min' or 'Max' field in {}", a_ruleJson.dump());
-            return false;
+            isValid = false;
+            SKSE::log::error("HighHeelDetector::ParseFormIDRange - Missing 'Min' or 'Max' field: {}",
+                             a_ruleJson.dump());
         }
-        return true;
+        return isValid;
     }
 };
 
