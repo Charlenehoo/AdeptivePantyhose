@@ -87,7 +87,7 @@ void InitLog() {
     auto loggerPtr = std::make_shared<spdlog::logger>("log", std::move(fileLoggerPtr));
     spdlog::set_default_logger(std::move(loggerPtr));
 
-#ifdef DEBUG
+#ifdef _DEBUG
     spdlog::set_level(spdlog::level::trace);
     spdlog::flush_on(spdlog::level::trace);
 #else
