@@ -80,10 +80,10 @@ bool HighHeelDetector::ParseFormIDRange(const nlohmann::json& j) {
             rule.min = static_cast<RE::FormID>(std::stoul(ruleJson["Min"].get<std::string>(), nullptr, 16));
             rule.max = static_cast<RE::FormID>(std::stoul(ruleJson["Max"].get<std::string>(), nullptr, 16));
 
-            if (rule.max <= rule.min) {
+            if (rule.max < rule.min) {
                 SKSE::log::warn(
-                    "Invalid FormID range rule for plugin '{}', skipping: Min ({:#x}) is greater than Max ({:#x}). ",
-                    rule.plugin, rule.min, rule.max);
+                    "Invalid FormID range rule for plugin '{}', skipping: Max ({:#x}) is lesser than Min ({:#x}). ",
+                    rule.plugin, rule.max, rule.min);
                 continue;
             }
 
