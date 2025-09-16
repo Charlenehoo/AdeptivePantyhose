@@ -5,14 +5,13 @@
 #include <string>
 
 class HighHeelDetector {
-public:
+private:
     struct FormIDRangeRule {
         std::string plugin{};
         RE::FormID min{};
         RE::FormID max{};
     };
 
-private:
     std::vector<FormIDRangeRule> formIDRangeRules_;
     std::vector<std::string> keywordsRules_;
 

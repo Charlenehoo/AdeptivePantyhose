@@ -11,110 +11,158 @@ HighHeelDetector& HighHeelDetector::GetSingleton() {
 
 bool HighHeelDetector::Init(const std::string& jsonPath) {
     SKSE::log::trace(">>>> Entering HighHeelDetector::Init");
-    SKSE::log::trace("Loading high heel definitions from: {}", jsonPath);
+    SKSE::log::info("Initializing HighHeelDetector from '{}'...", jsonPath);
 
     std::ifstream file(jsonPath);
     if (!file.is_open()) {
-        SKSE::log::error("HighHeelDetector::Init - Failed to open JSON file: {}", jsonPath);
-        SKSE::log::trace("<<<< Exiting HighHeelDetector::Init (false)");
+        SKSE::log::error("Failed to open high heel definition file: {}", jsonPath);
+        SKSE::log::trace("<<<< Exiting HighHeelDetector::Init (result: false)");
         return false;
     }
 
     nlohmann::json j;
     try {
         file >> j;
-        SKSE::log::trace("HighHeelDetector::Init - JSON file loaded successfully");
+        SKSE::log::debug("JSON file parsed successfully.");
     } catch (const nlohmann::json::parse_error& e) {
-        SKSE::log::error("HighHeelDetector::Init - Failed to parse JSON: {}", e.what());
-        SKSE::log::trace("<<<< Exiting HighHeelDetector::Init (false)");
+        SKSE::log::error("Failed to parse JSON from '{}'. Details: {}", jsonPath, e.what());
+        SKSE::log::trace("<<<< Exiting HighHeelDetector::Init (result: false)");
         return false;
     }
 
-    bool result = ParseJson(j);
-    SKSE::log::trace("<<<< Exiting HighHeelDetector::Init ({})", result);
-    return result;
+    if (ParseJson(j)) {
+        SKSE::log::info(
+            "HighHeelDetector initialized successfully. Loaded {} keyword rule(s) and {} FormID range rule(s).",
+            keywordsRules_.size(), formIDRangeRules_.size());
+        SKSE::log::trace("<<<< Exiting HighHeelDetector::Init (result: true)");
+        return true;
+    } else {
+        SKSE::log::error("Failed to process rules from high heel definition file.");
+        SKSE::log::trace("<<<< Exiting HighHeelDetector::Init (result: false)");
+        return false;
+    }
 }
 
 namespace {
     inline bool IsValidFormIDRangeRulesJson(const nlohmann::json& a_ruleJson) {
-        bool isValid = true;
-        if (!a_ruleJson.is_object()) {
-            isValid = false;
-            SKSE::log::error("HighHeelDetector::ParseFormIDRange - Rule is not an object: {}", a_ruleJson.dump());
+        if (!a_ruleJson.is_object() || !a_ruleJson.contains("Plugin") || !a_ruleJson.contains("Min") ||
+            !a_ruleJson.contains("Max")) {
+            return false;
         }
-        if (!a_ruleJson.contains("Plugin")) {
-            isValid = false;
-            SKSE::log::error("HighHeelDetector::ParseFormIDRange - Missing 'Plugin' field: {}", a_ruleJson.dump());
-        }
-        if (!a_ruleJson.contains("Min") || !a_ruleJson.contains("Max")) {
-            isValid = false;
-            SKSE::log::error("HighHeelDetector::ParseFormIDRange - Missing 'Min' or 'Max' field: {}",
-                             a_ruleJson.dump());
-        }
-        return isValid;
+        return true;
     }
 };
 
 bool HighHeelDetector::ParseFormIDRange(const nlohmann::json& j) {
+    SKSE::log::trace(">>>> Entering HighHeelDetector::ParseFormIDRange");
+
+    if (!j.contains("ByFormIDRange")) {
+        SKSE::log::warn("'ByFormIDRange' section not found in JSON, skipping.");
+        SKSE::log::trace("<<<< Exiting HighHeelDetector::ParseFormIDRange (result: true)");
+        return true;
+    }
+
     const auto& formIDRangeRulesJson = j["ByFormIDRange"];
     if (!formIDRangeRulesJson.is_array()) {
-        SKSE::log::error("Failed to parse JSON: 'ByFormIDRange' is not an array, got {}", formIDRangeRulesJson.dump());
+        SKSE::log::error("'ByFormIDRange' must be an array. JSON content: {}", formIDRangeRulesJson.dump());
+        SKSE::log::trace("<<<< Exiting HighHeelDetector::ParseFormIDRange (result: false)");
         return false;
     }
 
     for (const auto& ruleJson : formIDRangeRulesJson) {
-        if (!IsValidFormIDRangeRulesJson(ruleJson)) return false;
+        if (!IsValidFormIDRangeRulesJson(ruleJson)) {
+            SKSE::log::error("Invalid FormID range rule found, skipping. Rule content: {}", ruleJson.dump());
+            continue;
+        }
         try {
             FormIDRangeRule rule;
             rule.plugin = ruleJson["Plugin"].get<std::string>();
             rule.min = static_cast<RE::FormID>(std::stoul(ruleJson["Min"].get<std::string>(), nullptr, 16));
             rule.max = static_cast<RE::FormID>(std::stoul(ruleJson["Max"].get<std::string>(), nullptr, 16));
+
+            if (rule.max <= rule.min) {
+                SKSE::log::warn(
+                    "Invalid FormID range rule for plugin '{}', skipping: Min ({:#x}) is greater than Max ({:#x}). ",
+                    rule.plugin, rule.min, rule.max);
+                continue;
+            }
+
             formIDRangeRules_.push_back(rule);
+            SKSE::log::debug("Loaded FormID range rule: Plugin='{}', Min={:#x}, Max={:#x}", rule.plugin, rule.min,
+                             rule.max);
         } catch (const std::exception& e) {
-            SKSE::log::error("Failed to parse FormIDRange rule {}: {}", ruleJson.dump(), e.what());
-            return false;
+            SKSE::log::error("Failed to parse FormIDRange rule. Content: {}. Details: {}", ruleJson.dump(), e.what());
+            continue;
         }
     }
     return true;
 }
 
 bool HighHeelDetector::ParseKeywords(const nlohmann::json& j) {
+    SKSE::log::trace(">>>> Entering HighHeelDetector::ParseKeywords");
+
+    if (!j.contains("ByKeywords")) {
+        SKSE::log::warn("'ByKeywords' section not found in JSON, skipping.");
+        SKSE::log::trace("<<<< Exiting HighHeelDetector::ParseKeywords (result: true)");
+        return true;
+    }
+
     const auto& keywords = j["ByKeywords"];
     if (!keywords.is_array()) {
-        SKSE::log::error("Failed to parse JSON: 'ByKeywords' is not an array, got {}", keywords.dump());
+        SKSE::log::error("'ByKeywords' must be an array. JSON content: {}", keywords.dump());
+        SKSE::log::trace("<<<< Exiting HighHeelDetector::ParseKeywords (result: false)");
         return false;
     }
 
     for (const auto& kw : keywords) {
         if (!kw.is_string()) {
-            SKSE::log::error("Failed to parse Keywords: expected string but got {}", kw.dump());
-            return false;
+            SKSE::log::error("Keyword must be a string, skipping. Content: {}", kw.dump());
+            continue;
         }
-
-        keywordsRules_.push_back(kw.get<std::string>());
+        auto keywordStr = kw.get<std::string>();
+        keywordsRules_.push_back(keywordStr);
+        SKSE::log::debug("Loaded keyword rule: '{}'", keywordStr);
     }
+    SKSE::log::trace("<<<< Exiting HighHeelDetector::ParseKeywords (result: true)");
     return true;
 }
 
 bool HighHeelDetector::ParseJson(const nlohmann::json& j) {
+    SKSE::log::trace(">>>> Entering HighHeelDetector::ParseJson");
     keywordsRules_.clear();
     formIDRangeRules_.clear();
-    return (ParseKeywords(j) && ParseFormIDRange(j));
+
+    bool keywordsParsed = ParseKeywords(j);
+    bool formIDRangeParsed = ParseFormIDRange(j);
+
+    bool result = keywordsParsed && formIDRangeParsed;
+    SKSE::log::trace("<<<< Exiting HighHeelDetector::ParseJson (result: {})", result);
+    return result;
 }
 
 bool HighHeelDetector::IsHighHeel(RE::TESObjectARMO* a_armor) const {
-    if (!a_armor) return false;
-    SKSE::log::trace("IsHighHeel called with armor: {}", a_armor->GetName());
+    SKSE::log::trace(">>>> Entering HighHeelDetector::IsHighHeel");
+
+    if (!a_armor) {
+        SKSE::log::trace("<<<< Exiting HighHeelDetector::IsHighHeel (result: false, armor is null)");
+        return false;
+    }
+
+    SKSE::log::debug("Checking if armor '{}' (FormID: {:#x}) is a high heel...", a_armor->GetName(),
+                     a_armor->GetFormID());
 
     for (const auto& kw : keywordsRules_) {
-        bool hasKeyword = a_armor->HasKeywordString(kw);
-        SKSE::log::trace("IsHighHeel checking keyword: {}, result: {}", kw, hasKeyword);
-        if (hasKeyword) return hasKeyword;
+        if (a_armor->HasKeywordString(kw)) {
+            SKSE::log::debug("Decision: YES. Matched keyword rule: '{}'.", kw);
+            SKSE::log::trace("<<<< Exiting HighHeelDetector::IsHighHeel (result: true)");
+            return true;
+        }
     }
 
     const RE::TESFile* file = a_armor->GetFile(0);
     if (!file) {
-        SKSE::log::trace("IsHighHeel skiped FormID check due to invalid file pointer");
+        SKSE::log::trace("Cannot check by FormID: armor has an invalid file pointer.");
+        SKSE::log::trace("<<<< Exiting HighHeelDetector::IsHighHeel (result: false)");
         return false;
     }
 
@@ -122,17 +170,16 @@ bool HighHeelDetector::IsHighHeel(RE::TESObjectARMO* a_armor) const {
     const RE::FormID localFormID = a_armor->GetLocalFormID();
 
     for (const auto& rule : formIDRangeRules_) {
-        bool isPluginMatch = (fileName == rule.plugin);
-        SKSE::log::trace("IsHighHeel checking armor plugin name: {}, required plugin nmae: {}, result: {}", fileName,
-                         rule.plugin, isPluginMatch);
-        if (!isPluginMatch) continue;
-
-        bool isFormIDMatch = (localFormID >= rule.min && localFormID <= rule.max);
-        SKSE::log::trace("IsHighHeel checking armor Form ID: 0x{:X}, required Form ID: 0x{:X} to 0x{:X}, result: {}",
-                         localFormID, rule.min, rule.max, isFormIDMatch);
-        if (isFormIDMatch) return true;
+        if (fileName == rule.plugin && localFormID >= rule.min && localFormID <= rule.max) {
+            SKSE::log::debug(
+                "Decision: YES. Matched FormID range rule. Plugin: '{}', FormID {:#x} is in [{:#x} - {:#x}].",
+                rule.plugin, localFormID, rule.min, rule.max);
+            SKSE::log::trace("<<<< Exiting HighHeelDetector::IsHighHeel (result: true)");
+            return true;
+        }
     }
 
-    SKSE::log::trace("IsHighHeel return with armor: {}, overall result: {}", a_armor->GetName(), "mismatch");
+    SKSE::log::debug("Decision: NO. No matching rules found for armor '{}'.", a_armor->GetName());
+    SKSE::log::trace("<<<< Exiting HighHeelDetector::IsHighHeel (result: false)");
     return false;
 }
