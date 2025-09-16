@@ -1,0 +1,483 @@
+================================================================================
+命名规范
+================================================================================
+
+Macro: MACRO_CASE
+
+Enum (匿名和具名): PascalCase
+Enum Item: kPrefixPascalCase
+
+Class: PascalCase
+Struct: PascalCase
+Function: PascalCase
+Typedef: PascalCase
+Namespace: PascalCase
+Template Parameter: TPascalCase 
+
+Variable: camelCase
+Function Parameter: a_camelCase
+Global Variable: g_camelCase
+Member Variable: m_camelCase
+
+================================================================================
+主要组件
+================================================================================
+
+class BodyMorphManager {
+public:
+    static BodyMorphManager& GetSingleton();
+    bool Init();
+    void UpdateHighHeelMorph(RE::Actor* a_actor, bool isHighHeel);
+};
+
+class EventProcessor : public RE::BSTEventSink<RE::TESEquipEvent> {
+public:
+    static EventProcessor& GetSingleton();
+    RE::BSEventNotifyControl ProcessEvent(const RE::TESEquipEvent* a_event,
+                                          RE::BSTEventSource<RE::TESEquipEvent>*) override;
+};
+
+class HighHeelDetector {
+public:
+    static HighHeelDetector& GetSingleton();
+    bool Init(const std::string& jsonPath);
+    bool IsHighHeel(RE::TESObjectARMO* armor) const;
+};
+
+================================================================================
+运行阶段
+================================================================================
+
+1. 初始化阶段：
+
+1.1 初始化 Log，重要里程碑，此时 Log 未初始化，失败可调用 SKSE::stl::report_and_fail
+1.2 注册系统消息回调，重要里程碑 但
+1.3 初始化 HighHeelDetector，重要里程碑
+1.4 注册游戏事件回调，重要里程碑，但 RE::ScriptEventSourceHolder::GetSingleton()->AddEventSink 无返回值，不判断失败
+
+
+2. 系统消息回调阶段
+
+2.1 初始化 BodyMorphManager，重要里程碑
+2.2 处理首次加载游戏事件，普通操作
+
+
+3. 游戏运行阶段
+
+3.1 处理装备穿、脱事件，热点普通操作
+
+
+4. 工具函数
+
+4.1 HighHeelDetector::IsHighHeel 热点关键决策
+4.2 BodyMorphManager::UpdateHighHeelMorph 热点普通操作
+
+================================================================================
+日志规范
+================================================================================
+
+1. 基本原則
+關注點分離 (Separation of Concerns): 日誌的記錄應當由執行具體操作的最深層函數負責。上層的調用者（或稱「協調者」）不應記錄其調用的子函數的內部實現細節。
+
+信任但需記錄 (Trust but Log): 對於無法從 API 返回值中驗證成功與否的重要操作（特別是與遊戲引擎的交互），應當詳細記錄執行的「意圖」和「參數」，並將驗證責任交給最終用戶（透過比對日誌與遊戲行為）。
+
+上下文豐富 (Rich Context): 所有日誌都應包含足夠的上下文信息（如 FormID、Actor 名稱、文件名、關鍵變數值等），以便在不重新執行程式的情況下也能理解發生了什麼。
+
+2. 日誌級別 (Log Levels)
+為了區分日誌的重要性，我們採用標準的日誌級別：
+
+SKSE::log::trace: 用於追蹤詳細的程式執行流程，如函數的入口和出口。僅在除錯 (Debug) 版本中啟用。
+
+SKSE::log::debug: 用於記錄用於除錯的詳細信息，如變數狀態、中間計算結果等。
+
+SKSE::log::info: 用於記錄系統的重要里程碑、關鍵配置、可驗證的關鍵決策，以及不可驗證的操作意圖。這是給用戶看的日誌。
+
+SKSE::log::warn: 用於記錄可預期的、可恢復的異常情況，或可能引發問題的狀態。
+
+SKSE::log::error: 用於記錄導致當前操作失敗，但不會使整個模組崩潰的嚴重錯誤。
+
+3. 日誌格式與規則
+規則 1: 函數流程日誌 (Function Flow)
+
+級別: trace
+
+目的: 追蹤函數調用堆疊。
+
+格式:
+
+入口: SKSE::log::trace(">>>> Entering ClassName::FunctionName");
+
+出口 (有返回值): SKSE::log::trace("<<<< Exiting ClassName::FunctionName (result: {})", result);
+
+出口 (無返回值): SKSE::log::trace("<<<< Exiting ClassName::FunctionName");
+
+規則 2: 重要里程碑日誌 (Major Milestones)
+
+級別: info
+
+目的: 標記模組生命週期中的關鍵事件。
+
+時機: 初始化完成、註冊事件成功、讀取配置文件等。
+
+範例:
+
+C++
+
+// HighHeelDetector::Init
+SKSE::log::info("HighHeelDetector initialized successfully. Loaded {} rules from '{}'.", rules.size(), jsonPath);
+
+// BodyMorphManager::Init
+SKSE::log::info("BodyMorphManager initialized.");
+規則 3: 關鍵決策日誌 (Critical Decisions)
+
+級別: debug 或 info (取決於決策的頻率與重要性)
+
+目的: 記錄決策的依據（輸入）和結果（輸出），使其透明化。
+
+時機: 在決策函數的核心邏輯處。
+
+範例:
+
+C++
+
+// HighHeelDetector::IsHighHeel
+auto* actorName = a_actor ? a_actor->GetName() : "Unknown";
+SKSE::log::debug("Decision: Is armor '{}' (FormID: {:#x}) a high heel for actor '{}'? Result: {}",
+    armor->GetName(), armor->GetFormID(), actorName, isHeel);
+規則 4: 不可驗證操作日誌 (Unverifiable Actions)
+
+級別: info
+
+目的: 根據您的原則，詳細記錄一個無法通過返回值確認的「操作意圖」。日誌本身就是操作的證明。
+
+格式: [Unverifiable Action] IntentToPerform on Target with Parameters. User verification required.
+
+範例:
+
+C++
+
+// 註冊遊戲事件回調
+SKSE::log::info("[Unverifiable Action] Registering EventProcessor as a sink for TESEquipEvent. "
+                "API provides no return value. User should verify by equipping items in-game and checking for subsequent logs.");
+
+// BodyMorphManager::UpdateHighHeelMorph
+auto* actorName = a_actor->GetName();
+auto formID = a_actor->GetFormID();
+SKSE::log::info("[Unverifiable Action] Requesting engine to update high heel morph for actor '{}' (FormID: {:#x}). Set isHighHeel to: {}. "
+                "User should verify the actor's appearance in-game.",
+                actorName, formID, isHighHeel);
+規則 5: 深層操作日誌 (Deep Operation - SoC Principle)
+
+級別: debug
+
+目的: 由最底層的、執行具體工作的函數來記錄其操作細節。
+
+範例:
+假設 HighHeelDetector::IsHighHeel 內部有一個更深層的函數 CheckArmorAgainstRules。
+
+C++
+
+// 在 HighHeelDetector::IsHighHeel 中 (上層協調者)
+bool HighHeelDetector::IsHighHeel(RE::TESObjectARMO* armor) const {
+    SKSE::log::trace(">>>> Entering HighHeelDetector::IsHighHeel");
+
+    // 它只負責協調，不記錄 CheckArmorAgainstRules 的細節
+    bool result = CheckArmorAgainstRules(armor);
+
+    SKSE::log::debug("Decision: Is armor '{}' a high heel? Result: {}", armor->GetName(), result);
+    SKSE::log::trace("<<<< Exiting HighHeelDetector::IsHighHeel (result: {})", result);
+    return result;
+}
+
+// 在 CheckArmorAgainstRules 中 (底層執行者)
+bool HighHeelDetector::CheckArmorAgainstRules(RE::TESObjectARMO* armor) const {
+    // 這裡才是記錄具體操作的地方
+    SKSE::log::debug("Checking FormID {:#x} against internal rule map...", armor->GetFormID());
+    auto it = _rules.find(armor->GetFormID());
+    if (it != _rules.end()) {
+        SKSE::log::debug("Found a matching rule for FormID {:#x}.", armor->GetFormID());
+        return true;
+    }
+    return false;
+}
+在這個例子中，IsHighHeel 作為公開接口，記錄了最終的決策。而具體的「如何檢查」的日誌則由更深層的 CheckArmorAgainstRules 負責。這完美符合了您的關注點分離原則。
+
+================================================================================
+
+
+日志规范
+
+trace: 
+debug: 
+    现在时，
+    句型:
+        [操作] [对象]. -> Load plugin.
+info: 
+    过去时，过去完成时，记录里程碑式的进度，一个函数通常只在返回前只记录一条info类型。
+    句型:
+        [对象] [操作]. -> Plugin loaded.
+
+warn: 
+
+error: 次要功能失效
+    句型:
+        Failed to [操作].
+        Failed to [操作] due to [原因].
+
+
+
+critical: 主要功能失效
+report_and_fail: 只在SKSEPluginLoad中使用，代替error和critical
+
+操作:
+    Init
+    Get
+    Register
+
+================================================================================
+SKSE 插件日志规范 v1.0
+================================================================================
+
+1. 基本原则
+------------
+1.1 日志是调试的生命线，不是负担
+1.2 每个日志条目应提供上下文和可操作信息
+1.3 保持日志简洁但信息丰富
+1.4 区分开发日志和发布日志
+
+2. 日志级别规范
+----------------
+2.1 trace
+   - 最详细的执行流程跟踪
+   - 函数入口/出口
+   - 关键决策点
+   - 参数值记录
+   - 仅用于开发环境
+
+2.2 debug
+   - 关键状态变化
+   - 重要决策结果
+   - 模块间调用
+   - 开发环境默认级别
+
+2.3 info
+   - 插件生命周期事件（加载、卸载）
+   - 重要里程碑（初始化完成）
+   - 配置加载成功
+   - 发布版本默认级别
+
+2.4 warn
+   - 潜在问题（空指针检查）
+   - 非关键错误
+   - 意外但可恢复的状态
+
+2.5 error
+   - 操作失败
+   - 接口不可用
+   - 配置错误
+   - 异常捕获
+
+2.6 critical
+   - 致命错误
+   - 无法恢复的状态
+   - 插件即将崩溃
+
+3. 日志格式规范
+----------------
+3.1 标准格式：
+   [时间] [级别] [文件:行号] [函数] - 消息
+
+3.2 示例：
+   [2023-08-15 14:30:22.123] [trace] [Plugin.cpp:42] [Init] - Initializing plugin
+
+3.3 简化格式（当性能敏感时）：
+   [级别] [函数] - 消息
+
+4. 函数日志规范
+----------------
+4.1 入口日志：
+   SKSE::log::trace(">>>> Entering FunctionName");
+   
+4.2 出口日志：
+   SKSE::log::trace("<<<< Exiting FunctionName (result)");
+   
+4.3 参数记录：
+   SKSE::log::trace("{} - param1={}, param2={}", __func__, value1, value2);
+
+5. 错误处理规范
+----------------
+5.1 空指针检查：
+   if (!ptr) {
+       SKSE::log::warn("{} - Null pointer encountered", __func__);
+       return;
+   }
+
+5.2 异常捕获：
+   try {
+       // 代码
+   } catch (const std::exception& e) {
+       SKSE::log::error("{} - Exception: {}", __func__, e.what());
+   }
+
+5.3 错误传播：
+   if (!success) {
+       SKSE::log::error("{} - Operation failed with code {}", __func__, errorCode);
+       return false;
+   }
+
+6. 关键操作日志
+----------------
+6.1 操作开始：
+   SKSE::log::debug("Starting operation...");
+   
+6.2 操作成功：
+   SKSE::log::debug("Operation completed successfully");
+   
+6.3 操作失败：
+   SKSE::log::error("Operation failed: {}", reason);
+
+7. 性能敏感区域日志
+-------------------
+7.1 避免在热路径中使用高开销日志：
+   #ifdef _DEBUG
+   SKSE::log::trace("High frequency event: {}", eventID);
+   #endif
+
+7.2 使用条件日志：
+   if (spdlog::get_level() <= spdlog::level::trace) {
+       // 计算日志参数
+       SKSE::log::trace("{}", expensiveOperation());
+   }
+
+8. 模块化日志规范
+------------------
+8.1 每个模块负责自己的日志：
+   class BodyMorphManager {
+   public:
+       void Update() {
+           SKSE::log::trace("BodyMorphManager::Update - Starting");
+           // ...
+       }
+   };
+
+8.2 避免跨模块日志细节：
+   // 正确：委托给专业模块
+   BodyMorphManager::Update();
+   
+   // 错误：在调用方记录实现细节
+   SKSE::log::trace("Setting morph value..."); // 应在 BodyMorphManager 内部记录
+
+9. 上下文信息记录
+------------------
+9.1 游戏对象信息：
+   SKSE::log::debug("Processing actor: {}", actor->GetName());
+   
+9.2 表单信息：
+   SKSE::log::trace("Form: {} [0x{:X}]", form->GetName(), form->GetFormID());
+
+9.3 状态变化：
+   SKSE::log::debug("State changed: {} -> {}", oldState, newState);
+
+10. 日志文件管理
+----------------
+10.1 文件命名：
+    pluginName.log
+
+10.2 文件位置：
+    SKSE日志目录（SKSE::log::log_directory()）
+
+10.3 日志轮转：
+    使用 spdlog 的旋转日志功能
+
+11. 发布版本配置
+-----------------
+11.1 设置默认日志级别：
+    #ifdef _DEBUG
+    spdlog::set_level(spdlog::level::trace);
+    #else
+    spdlog::set_level(spdlog::level::info);
+    #endif
+
+11.2 禁用高开销日志：
+    #ifndef _DEBUG
+    #define LOG_TRACE(...)
+    #else
+    #define LOG_TRACE(...) SKSE::log::trace(__VA_ARGS__)
+    #endif
+
+12. 最佳实践示例
+-----------------
+12.1 函数示例：
+    bool LoadConfig(const std::string& path) {
+        SKSE::log::trace(">>>> Entering LoadConfig: path={}", path);
+        
+        try {
+            std::ifstream file(path);
+            if (!file) {
+                SKSE::log::error("Failed to open config file: {}", path);
+                SKSE::log::trace("<<<< Exiting LoadConfig (false)");
+                return false;
+            }
+            
+            // 解析配置...
+            SKSE::log::info("Config loaded successfully");
+            SKSE::log::trace("<<<< Exiting LoadConfig (true)");
+            return true;
+        } catch (const std::exception& e) {
+            SKSE::log::error("Exception while loading config: {}", e.what());
+            SKSE::log::trace("<<<< Exiting LoadConfig (false)");
+            return false;
+        }
+    }
+
+12.2 事件处理示例：
+    void OnEquip(Event* event) {
+        SKSE::log::trace(">>>> Entering OnEquip");
+        
+        if (!event || !event->actor) {
+            SKSE::log::warn("Invalid event data");
+            SKSE::log::trace("<<<< Exiting OnEquip (early)");
+            return;
+        }
+        
+        Actor* actor = event->actor->As<Actor>();
+        if (!actor) {
+            SKSE::log::trace("Event actor is not a valid Actor");
+            SKSE::log::trace("<<<< Exiting OnEquip");
+            return;
+        }
+        
+        SKSE::log::debug("Processing equip event for {}", actor->GetName());
+        
+        try {
+            // 处理逻辑...
+            SKSE::log::trace("Event processed successfully");
+        } catch (...) {
+            SKSE::log::error("Unexpected error processing equip event");
+        }
+        
+        SKSE::log::trace("<<<< Exiting OnEquip");
+    }
+
+13. 禁止事项
+-------------
+13.1 不要记录敏感信息
+13.2 避免过度日志导致性能问题
+13.3 不要在生产环境使用 trace 级别
+13.4 不要在没有错误处理的情况下记录错误
+
+14. 日志审查
+-------------
+14.1 定期检查日志内容
+14.2 确保错误日志包含足够诊断信息
+14.3 验证日志级别配置
+14.4 测试日志文件轮转功能
+
+================================================================================
+遵循这些规范将确保：
+1. 快速定位和诊断问题
+2. 清晰的代码执行流程
+3. 平衡的日志性能和详细程度
+4. 一致的日志格式和风格
+5. 生产环境的安全性和性能
+================================================================================
