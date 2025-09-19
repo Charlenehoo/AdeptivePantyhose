@@ -58,7 +58,7 @@ RE::BSEventNotifyControl EventProcessor::ProcessEvent(const RE::TESEquipEvent* a
         SKSE::log::trace("EventProcessor::ProcessEvent - Armor is not footwear");
         SKSE::log::trace("<<<< Exiting EventProcessor::ProcessEvent (not footwear)");
         return RE::BSEventNotifyControl::kContinue;
-    }
+    }  // calve
 
     const char* actorName = actor->GetName() ? actor->GetName() : "unnamed";
     const char* armorName = armor->GetName() ? armor->GetName() : "unnamed";

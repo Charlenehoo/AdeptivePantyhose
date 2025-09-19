@@ -2,6 +2,26 @@
   "ByKeywords": ["SLA_KillerHeels"],
   "ByFormIDRange": [
     {
+      "Plugin": "[Caenarvon] Cosplay Pack.esp",
+      "Min": "0xDDF",
+      "Max": "0xDDF"
+    },
+    {
+      "Plugin": "[Caenarvon] Cosplay Pack.esp",
+      "Min": "0x878",
+      "Max": "0x878"
+    },
+    {
+      "Plugin": "[Caenarvon] Cosplay Pack.esp",
+      "Min": "0xE66",
+      "Max": "0xE66"
+    },
+    {
+      "Plugin": "[Caenarvon] Magecore.esp",
+      "Min": "0x1B4C",
+      "Max": "0x1B4C"
+    },
+    {
       "Plugin": "[Caenarvon] Cosplay Pack Gala.esp",
       "Min": "0xB69",
       "Max": "0xB72"

@@ -1,0 +1,10 @@
+﻿,,,Equiping,,,Unequiping,,
+State#,kFeet,kCalves,LowHeel,HighHeel,Pantyhose,LowHeel,HighHeel,Pantyhose
+0,,,,,,,,
+1,Barefeet,Barelegs,2,3,4,0,0,0
+2,LowHeel,Barelegs,2,3,5,1,0,0
+3,HighHeel,Barelegs,2,3,6,0,1,0
+4,Barefeet,Pantyhose,5,6,4,0,0,1
+5,LowHeel,Pantyhose,5,6,5,4,0,2
+6,HighHeel,Pantyhose,5,6,6,0,4,3
+State 0 means impossible,,,,,,,,

@@ -1,0 +1,8 @@
+﻿State#,kFeet,kCalves,Equiping:LowHeel,Equiping:HighHeel,Equiping:Pantyhose,Unequiping:LowHeel,Unequiping:HighHeel,Unequiping:Pantyhose,Morph Action,Notes
+0,Invalid,Invalid,0,0,0,0,0,0,None,Impossible state
+1,Barefeet,Barelegs,2,3,4,1,1,1,None,初始状态
+2,LowHeel,Barelegs,2,3,5,1,1,2,Clear Heel & NoHeel,普通鞋子
+3,HighHeel,Barelegs,2,3,6,3,1,3,Set Heel,高跟鞋
+4,Barefeet,Pantyhose,5,6,4,4,4,1,Set NoHeel,光脚穿连裤袜
+5,LowHeel,Pantyhose,5,6,5,4,5,2,Set NoHeel,低跟鞋+连裤袜
+6,HighHeel,Pantyhose,5,6,6,6,4,3,Set Heel,高跟鞋+连裤袜
